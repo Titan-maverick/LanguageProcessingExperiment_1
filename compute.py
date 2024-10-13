@@ -2,12 +2,17 @@
 import re
 from pathlib import Path
 from typing import List, Tuple
+from collections import Counter
+from typing import List, Tuple
 
 
-# 读取文本文件
+# 读取文本文件并去除标点符号
 def read_text(file_path: str) -> str:
     path = Path(file_path)
-    return path.read_text("utf-8").strip()
+    text = path.read_text("utf-8").strip()
+    # 使用正则表达式去除标点符号
+    text = re.sub(r'[^\w\s]', '', text)
+    return text
 
 
 # 读取分词结果
@@ -15,20 +20,27 @@ def read_words(file_path: str) -> List[str]:
     return read_text(file_path).splitlines()
 
 
-# 计算 P, R, F 值
+# 计算 P, R, F 值 (考虑每个单词的次数)
 def calculate_metrics(standard: List[str], predicted: List[str]) -> Tuple[float, float, float]:
-    # 计算正确预测的单词数
-    tp = sum(1 for word in predicted if word in standard)
-    # 计算预测错误的单词数
-    fp = len(predicted) - tp
-    # 计算标准答案中未出现的单词数
-    fn = len(standard) - tp
+    # 计算标准结果和预测结果的词频
+    standard_counter = Counter(standard)
+    predicted_counter = Counter(predicted)
+
+    # 计算 True Positives (取标准和预测词频的最小值)
+    tp = sum((standard_counter & predicted_counter).values())  # 交集的数量，考虑每个单词的次数
+    # print('tp', tp)
+    # 计算 False Positives
+    fp = sum((predicted_counter - standard_counter).values())  # 预测中多余的部分
+    # print('fp', fp)
+    # 计算 False Negatives
+    fn = sum((standard_counter - predicted_counter).values())  # 标准中漏掉的部分
+    # print('fn', fn)
 
     # 计算精确率
     precision = tp / (tp + fp) if tp + fp > 0 else 0
     # 计算召回率
     recall = tp / (tp + fn) if tp + fn > 0 else 0
-    # 计算F1值
+    # 计算 F1 值
     f1_score = 2 * (precision * recall) / (precision + recall) if precision + recall > 0 else 0
 
     return precision, recall, f1_score
@@ -36,6 +48,7 @@ def calculate_metrics(standard: List[str], predicted: List[str]) -> Tuple[float,
 
 # 主函数
 def main():
+    # 所有结果应该刨除标点的影响, 进而可以看出模型对文字分词的对比
     # 读取标准分词结果
     standard_words = read_words("participle/assets/jieba.txt")  # 替换为实际标准分词结果文件路径
 
